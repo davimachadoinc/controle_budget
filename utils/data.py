@@ -859,23 +859,33 @@ def get_equipe_log(page_key: str) -> pd.DataFrame:
         )
         changed = merged[abs(merged["custo_depois"] - merged["custo_antes"]) > 1]
 
-        # Para detectar desligamento: verifica se a pessoa tem custo > 0 em
-        # algum mês FUTURO (> d_depois) no arquivo mais recente. Se não tiver → desligamento.
+        # Detecta desligamento e último mês com custo no arquivo mais recente
         d_depois_ts = pd.to_datetime(d_depois, format="%d/%m/%Y").to_period("M").to_timestamp()
-        futuros_a = df_a[
-            (df_a["tipo"] == "pessoa") &
-            (df_a["mes"] > d_depois_ts) &
-            (df_a["custo"] > 0)
-        ].groupby("pessoa")["custo"].sum()
+
+        # Último mês com custo > 0 por pessoa no arquivo novo
+        ultimo_mes_a = (
+            df_a[(df_a["tipo"] == "pessoa") & (df_a["custo"] > 0)]
+            .groupby("pessoa")["mes"].max()
+        )
+        # Último mês da projeção (para saber se a pessoa vai até o fim)
+        last_mes_a = df_a["mes"].max() if not df_a.empty else None
 
         for _, row in changed.iterrows():
-            tem_custo_futuro = futuros_a.get(row["pessoa"], 0) > 0
+            ultimo = ultimo_mes_a.get(row["pessoa"])
+            tem_custo_futuro = (
+                ultimo is not None and
+                pd.Timestamp(ultimo) > d_depois_ts
+            )
             if not tem_custo_futuro:
                 evento  = "desligamento"
                 detalhe = f"Desligamento de {row['pessoa']}"
             else:
                 evento  = "custo_alterado"
                 detalhe = f"Custo: R$ {fmt_brl(row['custo_antes'], 0)} → R$ {fmt_brl(row['custo_depois'], 0)}"
+                # Se o último mês com custo está antes do fim da projeção → vai ser desligado
+                if ultimo is not None and last_mes_a is not None and pd.Timestamp(ultimo) < pd.Timestamp(last_mes_a):
+                    mes_desl = pd.Timestamp(ultimo).strftime("%b/%y").capitalize()
+                    detalhe += f" (desligado em {mes_desl})"
             logs.append({
                 "data":          d_depois,
                 "evento":        evento,
