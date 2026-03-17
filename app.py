@@ -18,6 +18,8 @@ DEV_MODE = st.secrets.get("app_config", {}).get("dev_mode", False)
 
 
 def check_allowed(email: str) -> bool:
+    if email.endswith("@inchurch.com.br"):
+        return True
     allowed = st.secrets.get("app_config", {}).get("allowed_emails", [])
     return email in allowed
 
