@@ -416,7 +416,7 @@ def render_page(page_key: str):
             if not df_eq_log.empty:
                 st.divider()
                 st.subheader("Log de Alterações — Equipe")
-                ICONES = {"entrada": "🟢", "saida": "🔴", "custo_alterado": "🟡", "reposicao": "🔄"}
+                ICONES = {"entrada": "🟢", "saida": "🔴", "desligamento": "🔴", "custo_alterado": "🟡", "reposicao": "🔄"}
                 for _, row in df_eq_log.iterrows():
                     icone = ICONES.get(row["evento"], "•")
                     st.markdown(

@@ -858,13 +858,30 @@ def get_equipe_log(page_key: str) -> pd.DataFrame:
             )
         )
         changed = merged[abs(merged["custo_depois"] - merged["custo_antes"]) > 1]
+
+        # Para detectar desligamento: verifica se a pessoa tem custo > 0 em
+        # algum mês FUTURO (> d_depois) no arquivo mais recente. Se não tiver → desligamento.
+        d_depois_ts = pd.to_datetime(d_depois, format="%d/%m/%Y").to_period("M").to_timestamp()
+        futuros_a = df_a[
+            (df_a["tipo"] == "pessoa") &
+            (df_a["mes"] > d_depois_ts) &
+            (df_a["custo"] > 0)
+        ].groupby("pessoa")["custo"].sum()
+
         for _, row in changed.iterrows():
+            tem_custo_futuro = futuros_a.get(row["pessoa"], 0) > 0
+            if not tem_custo_futuro:
+                evento  = "desligamento"
+                detalhe = f"Desligamento de {row['pessoa']}"
+            else:
+                evento  = "custo_alterado"
+                detalhe = f"Custo: R$ {fmt_brl(row['custo_antes'], 0)} → R$ {fmt_brl(row['custo_depois'], 0)}"
             logs.append({
                 "data":          d_depois,
-                "evento":        "custo_alterado",
+                "evento":        evento,
                 "pessoa":        row["pessoa"],
                 "departamento":  row["departamento"],
-                "detalhe":       f"Custo: R$ {fmt_brl(row['custo_antes'], 0)} → R$ {fmt_brl(row['custo_depois'], 0)}",
+                "detalhe":       detalhe,
             })
 
         # Reposições — mesma interseção de meses
