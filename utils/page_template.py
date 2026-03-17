@@ -301,7 +301,7 @@ def render_page(page_key: str):
     with tab_equipe:
         df_eq = get_equipe_for_page(page_key)
         df_eq_log = get_equipe_log(page_key)
-        first_seen = get_equipe_first_seen(page_key)
+        first_seen, overall_min = get_equipe_first_seen(page_key)
 
         if df_eq.empty:
             no_data("Sem dados de equipe para este centro de custo.")
@@ -355,33 +355,47 @@ def render_page(page_key: str):
 
             last_mes  = pd.Timestamp(MESES_EQ[-1])
 
+            _TIPO_ORDER = {"pessoa": 0, "budget_livre": 1, "reposicao": 2, "novo": 3}
+
             rows = []
             for dept in sorted(df_eq["departamento"].unique()):
                 df_dept = df_eq[df_eq["departamento"] == dept]
-                # Todos que tiveram custo > 0 em algum mês
-                pessoas_com_custo = (
-                    df_dept.groupby(["pessoa", "tipo"])["custo"]
+
+                # Agrupa por (pessoa, tipo, row_idx) para manter reposições/novos separados
+                slots = (
+                    df_dept.groupby(["pessoa", "tipo", "row_idx"])["custo"]
                     .sum().reset_index()
                 )
-                pessoas_com_custo = pessoas_com_custo[pessoas_com_custo["custo"] > 0]
+                slots = slots[slots["custo"] > 0].copy()
+                slots["_ord"] = slots["tipo"].map(_TIPO_ORDER).fillna(1)
+                slots = slots.sort_values(["_ord", "pessoa", "row_idx"])
 
-                _TIPO_ORDER = {"pessoa": 0, "budget_livre": 1, "reposicao": 2, "novo": 3}
-                pessoas_com_custo = pessoas_com_custo.copy()
-                pessoas_com_custo["_ord"] = pessoas_com_custo["tipo"].map(_TIPO_ORDER).fillna(1)
-                pessoas_com_custo = pessoas_com_custo.sort_values(["_ord", "pessoa"])
-
-                for _, pt in pessoas_com_custo.iterrows():
-                    pessoa = pt["pessoa"]
-                    tipo   = pt["tipo"]
-                    df_p   = df_dept[(df_dept["pessoa"] == pessoa) & (df_dept["tipo"] == tipo)]
+                for _, pt in slots.iterrows():
+                    pessoa  = pt["pessoa"]
+                    tipo    = pt["tipo"]
+                    row_idx = pt["row_idx"]
+                    df_p    = df_dept[
+                        (df_dept["pessoa"] == pessoa) &
+                        (df_dept["tipo"]   == tipo)   &
+                        (df_dept["row_idx"] == row_idx)
+                    ]
 
                     meses_c = df_p[df_p["custo"] > 0]["mes"].sort_values()
                     ultimo  = pd.Timestamp(meses_c.iloc[-1])
 
-                    real_first = first_seen.get((pessoa, dept, tipo))
-                    inicio_str = real_first.strftime("%b/%y").capitalize() if real_first else "—"
-                    fim_str    = ("—" if ultimo >= last_mes
-                                  else ultimo.strftime("%b/%y").capitalize())
+                    if tipo == "pessoa":
+                        # Usa histórico de todos os arquivos; " - " se desde o início
+                        real_first = first_seen.get((pessoa, dept, tipo))
+                        if real_first and overall_min and real_first <= overall_min:
+                            inicio_str = " - "
+                        else:
+                            inicio_str = real_first.strftime("%b/%y").capitalize() if real_first else " - "
+                    else:
+                        # Reposição/novo: mostra o primeiro mês com custo no arquivo atual
+                        inicio_str = pd.Timestamp(meses_c.iloc[0]).strftime("%b/%y").capitalize()
+
+                    fim_str = ("—" if ultimo >= last_mes
+                               else ultimo.strftime("%b/%y").capitalize())
 
                     tipo_label = EQUIPE_TIPO_LABELS.get(tipo, "")
                     nome = f"{tipo_label} {pessoa}".strip() if tipo_label else pessoa

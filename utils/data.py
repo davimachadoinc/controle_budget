@@ -739,11 +739,12 @@ def _parse_equipe(file_id: str) -> pd.DataFrame:
                 "page_key":     page_key,
                 "pessoa":       pessoa,
                 "tipo":         tipo,
+                "row_idx":      i,   # identifica cada linha original do sheet
                 "mes":          mes,
                 "custo":        val,
             })
 
-    cols = ["departamento", "page_key", "pessoa", "tipo", "mes", "custo"]
+    cols = ["departamento", "page_key", "pessoa", "tipo", "row_idx", "mes", "custo"]
     if not records:
         return pd.DataFrame(columns=cols)
     return pd.DataFrame(records)[cols]
@@ -784,14 +785,16 @@ def get_equipe_for_page(page_key: str) -> pd.DataFrame:
     return latest[latest["page_key"] == page_key].copy()
 
 
-def get_equipe_first_seen(page_key: str) -> dict:
+def get_equipe_first_seen(page_key: str) -> tuple:
     """
-    Retorna {(pessoa, departamento, tipo): primeiro_mes} olhando todos os arquivos
-    de equipe em ordem cronológica. Usado para mostrar a data real de entrada de
-    cada colaborador, sem depender do primeiro mês do arquivo mais recente.
+    Retorna (dict, overall_min) onde:
+    - dict: {(pessoa, departamento, tipo): primeiro_mes} olhando todos os arquivos históricos
+    - overall_min: menor mês encontrado em qualquer arquivo (referência de "desde o início")
+    Usado para mostrar a data real de entrada sem depender do primeiro mês do arquivo atual.
     """
     all_eq = load_all_equipes()
     result = {}
+    overall_min = None
     for date_str in sorted(all_eq.keys(), key=lambda d: pd.to_datetime(d, format="%d/%m/%Y")):
         df = all_eq[date_str]
         if page_key != "consolidado":
@@ -801,7 +804,9 @@ def get_equipe_first_seen(page_key: str) -> dict:
             month = pd.Timestamp(row["mes"])
             if key not in result or month < result[key]:
                 result[key] = month
-    return result
+            if overall_min is None or month < overall_min:
+                overall_min = month
+    return result, overall_min
 
 
 def get_equipe_log(page_key: str) -> pd.DataFrame:
