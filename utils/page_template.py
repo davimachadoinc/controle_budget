@@ -400,11 +400,12 @@ def render_page(page_key: str):
                     tipo_label = EQUIPE_TIPO_LABELS.get(tipo, "")
                     nome = f"{tipo_label} {pessoa}".strip() if tipo_label else pessoa
 
-                    custo_ref = df_p[df_p["mes"] == mes_atual]["custo"].sum()
+                    custos_positivos = df_p[df_p["custo"] > 0]["custo"]
+                    custo_ref = custos_positivos.min() if not custos_positivos.empty else 0
                     rows.append({
                         "Departamento": dept,
                         "Colaborador":  nome,
-                        f"Custo ({mes_ref_label})": f"R$ {fmt_brl(custo_ref, 0)}" if custo_ref > 0 else "—",
+                        "Custo Mensal": f"R$ {fmt_brl(custo_ref, 0)}" if custo_ref > 0 else "—",
                         "Início":  inicio_str,
                         "Fim":     fim_str,
                     })
