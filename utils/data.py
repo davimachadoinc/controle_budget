@@ -107,7 +107,7 @@ GROUP_MAP = {
     "administrativo": ["Administrativo", "Business Intelligence", "Financeiro", "Facility"],
     "cx":             ["Client Support", "Customer Success", "Implementação"],
     "diretoria":      ["Diretoria"],
-    "educacao":       ["Educação"],
+    "educacao":       ["Educação", "Lançamento"],
     "comercial":      ["Field Sales", "Inbound", "Sales", "Outside Sales"],
     "marketing":      ["Marketing"],
     "parcerias":      ["Eventos", "Parceiros"],
@@ -118,7 +118,7 @@ GROUP_MAP = {
         "Inchurch Music", "Design", "InChurch Conference",
         "Key Account", "Meio de Pagamentos", "Outbound", "Produto",
         "Upsell", "inChurch KIDS", "inVolve", "Recorrente",
-        "Atos 6", "Chatbot", "Internacional", "Justus", "Lançamento",
+        "Atos 6", "Chatbot", "Internacional", "Justus",
     ],
 }
 
@@ -817,14 +817,17 @@ def get_equipe_log(page_key: str) -> pd.DataFrame:
                          "departamento": df_b[df_b["pessoa"] == p]["departamento"].iloc[0],
                          "detalhe": "Saiu da equipe"})
 
-        # Mudanças de custo
+        # Mudanças de custo — compara apenas meses presentes nos dois arquivos.
+        # Meses que sumiram por terem sido realizados não estão nos dois → sem falso positivo.
+        # Meses com custo diferente nos dois arquivos → mudança real → aparece no log.
+        meses_comuns = set(df_b["mes"].unique()) & set(df_a["mes"].unique())
+        pessoas_b = df_b[(df_b["tipo"] == "pessoa") & (df_b["mes"].isin(meses_comuns))]
+        pessoas_a = df_a[(df_a["tipo"] == "pessoa") & (df_a["mes"].isin(meses_comuns))]
         merged = (
-            df_b[df_b["tipo"] == "pessoa"]
-            .groupby(["pessoa", "departamento"])["custo"].sum()
+            pessoas_b.groupby(["pessoa", "departamento"])["custo"].sum()
             .reset_index()
             .merge(
-                df_a[df_a["tipo"] == "pessoa"]
-                .groupby(["pessoa", "departamento"])["custo"].sum()
+                pessoas_a.groupby(["pessoa", "departamento"])["custo"].sum()
                 .reset_index(),
                 on=["pessoa", "departamento"], suffixes=("_antes", "_depois")
             )
@@ -839,9 +842,9 @@ def get_equipe_log(page_key: str) -> pd.DataFrame:
                 "detalhe":       f"Custo: R$ {fmt_brl(row['custo_antes'], 0)} → R$ {fmt_brl(row['custo_depois'], 0)}",
             })
 
-        # Reposições novas
-        rep_antes  = len(df_b[df_b["tipo"] == "reposicao"])
-        rep_depois = len(df_a[df_a["tipo"] == "reposicao"])
+        # Reposições — mesma interseção de meses
+        rep_antes  = len(df_b[(df_b["tipo"] == "reposicao") & (df_b["mes"].isin(meses_comuns))])
+        rep_depois = len(df_a[(df_a["tipo"] == "reposicao") & (df_a["mes"].isin(meses_comuns))])
         if rep_depois != rep_antes:
             dept = df_a[df_a["tipo"] == "reposicao"]["departamento"].mode()
             dept_str = dept.iloc[0] if not dept.empty else "—"
