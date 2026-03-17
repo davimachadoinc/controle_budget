@@ -34,7 +34,7 @@ def _drive_service():
     return build("drive", "v3", credentials=creds)
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def _list_drive_folder() -> list[dict]:
     """Lista todos os arquivos da pasta do Drive (id, name, mimeType). Cache 1h."""
     svc = _drive_service()
@@ -43,7 +43,7 @@ def _list_drive_folder() -> list[dict]:
     return res.get("files", [])
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def _download_sheet(file_id: str) -> bytes:
     """Exporta Google Sheet como XLSX bytes (cache 1h)."""
     from googleapiclient.http import MediaIoBaseDownload
@@ -57,7 +57,7 @@ def _download_sheet(file_id: str) -> bytes:
     return buf.getvalue()
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def _download_sheet_csv(file_id: str) -> str:
     """Exporta Google Sheet como CSV string UTF-8 (cache 1h)."""
     from googleapiclient.http import MediaIoBaseDownload
@@ -71,7 +71,7 @@ def _download_sheet_csv(file_id: str) -> str:
     return buf.getvalue().decode("utf-8", errors="replace")
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def _download_file(file_id: str) -> bytes:
     """Baixa arquivo binário do Drive (CSV, etc.) como bytes (cache 1h)."""
     from googleapiclient.http import MediaIoBaseDownload
@@ -217,7 +217,7 @@ PALETTE = [
 # LEITURA DE DADOS
 # ─────────────────────────────────────────────
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def load_190b() -> pd.DataFrame:
     """
     Lê despesas liquidadas. Suporta duas fontes (usa a primeira encontrada):
@@ -333,7 +333,7 @@ def load_190b() -> pd.DataFrame:
     return df
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def load_depara() -> pd.DataFrame:
     file_id = _find_in_folder("de_para", mime=_SHEET_MIME)
     if not file_id:
@@ -370,7 +370,7 @@ def load_depara() -> pd.DataFrame:
     return dp[["cod_natureza", "classificacao"]].drop_duplicates("cod_natureza")
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def _parse_projecoes(file_id: str) -> pd.DataFrame:
     raw = _sheet_to_df(file_id)
 
@@ -427,7 +427,7 @@ def get_all_projecoes_files() -> list:
     return sorted(files)
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def load_all_projecoes() -> dict:
     """Retorna {date_str: df} para todos os arquivos de projeção."""
     result = {}
@@ -688,7 +688,7 @@ def _collapse_log_rows(df: pd.DataFrame) -> pd.DataFrame:
 # EQUIPE
 # ─────────────────────────────────────────────
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def _parse_equipe(file_id: str) -> pd.DataFrame:
     raw = _sheet_to_df(file_id)
 
@@ -763,7 +763,7 @@ def get_all_equipe_files() -> list:
     return sorted(files)
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def load_all_equipes() -> dict:
     """Retorna {date_str: df} para todos os arquivos de equipe."""
     result = {}
@@ -920,7 +920,7 @@ def save_nota(page_key: str, mes_str: str, texto: str) -> None:
 # SOFTWARE
 # ─────────────────────────────────────────────
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def _parse_software(file_id: str) -> pd.DataFrame:
     raw = _sheet_to_df(file_id)
 
