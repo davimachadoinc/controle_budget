@@ -9,7 +9,7 @@ import pandas as pd
 from utils.data import (
     GROUP_MAP, PAGE_LABELS, PALETTE, EQUIPE_TIPO_LABELS,
     get_realizado, get_previsto_all, get_log_mudancas,
-    get_equipe_for_page, get_equipe_log,
+    get_equipe_for_page, get_equipe_log, get_equipe_first_seen,
     get_software_for_page,
     load_notas, save_nota,
     chart_layout, fmt_brl, no_data,
@@ -301,6 +301,7 @@ def render_page(page_key: str):
     with tab_equipe:
         df_eq = get_equipe_for_page(page_key)
         df_eq_log = get_equipe_log(page_key)
+        first_seen = get_equipe_first_seen(page_key)
 
         if df_eq.empty:
             no_data("Sem dados de equipe para este centro de custo.")
@@ -352,7 +353,6 @@ def render_page(page_key: str):
             mes_ref_label = pd.Timestamp(mes_atual).strftime("%b/%y").capitalize()
             st.subheader(f"Colaboradores — {mes_ref_label}")
 
-            first_mes = pd.Timestamp(MESES_EQ[0])
             last_mes  = pd.Timestamp(MESES_EQ[-1])
 
             rows = []
@@ -376,12 +376,10 @@ def render_page(page_key: str):
                     df_p   = df_dept[(df_dept["pessoa"] == pessoa) & (df_dept["tipo"] == tipo)]
 
                     meses_c = df_p[df_p["custo"] > 0]["mes"].sort_values()
-                    primeiro = pd.Timestamp(meses_c.iloc[0])
-                    ultimo   = pd.Timestamp(meses_c.iloc[-1])
+                    ultimo  = pd.Timestamp(meses_c.iloc[-1])
 
-                    inicio_str = (f"< {first_mes.strftime('%b/%y').capitalize()}"
-                                  if primeiro <= first_mes
-                                  else primeiro.strftime("%b/%y").capitalize())
+                    real_first = first_seen.get((pessoa, dept, tipo))
+                    inicio_str = real_first.strftime("%b/%y").capitalize() if real_first else "—"
                     fim_str    = ("—" if ultimo >= last_mes
                                   else ultimo.strftime("%b/%y").capitalize())
 

@@ -784,6 +784,26 @@ def get_equipe_for_page(page_key: str) -> pd.DataFrame:
     return latest[latest["page_key"] == page_key].copy()
 
 
+def get_equipe_first_seen(page_key: str) -> dict:
+    """
+    Retorna {(pessoa, departamento, tipo): primeiro_mes} olhando todos os arquivos
+    de equipe em ordem cronológica. Usado para mostrar a data real de entrada de
+    cada colaborador, sem depender do primeiro mês do arquivo mais recente.
+    """
+    all_eq = load_all_equipes()
+    result = {}
+    for date_str in sorted(all_eq.keys(), key=lambda d: pd.to_datetime(d, format="%d/%m/%Y")):
+        df = all_eq[date_str]
+        if page_key != "consolidado":
+            df = df[df["page_key"] == page_key]
+        for _, row in df[df["custo"] > 0].iterrows():
+            key = (row["pessoa"], row["departamento"], row["tipo"])
+            month = pd.Timestamp(row["mes"])
+            if key not in result or month < result[key]:
+                result[key] = month
+    return result
+
+
 def get_equipe_log(page_key: str) -> pd.DataFrame:
     """Compara versões consecutivas do arquivo equipe e retorna mudanças."""
     all_eq = load_all_equipes()
