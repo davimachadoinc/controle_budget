@@ -1,83 +1,40 @@
 """
 utils/auth.py
-Autenticação por senha por página com suporte a senha mestra.
-A autenticação é persistida em cookie do navegador por 30 dias.
+Controle de acesso por e-mail por página.
+Masters acessam tudo; cada página tem sua lista de e-mails permitidos.
 """
 import streamlit as st
-from streamlit_cookies_controller import CookieController
-
-_COOKIE_TTL_DAYS = 30
-_controller = None
 
 
-def _get_controller():
-    global _controller
-    if _controller is None:
-        _controller = CookieController()
-    return _controller
-
-
-def check_page_password(page_key: str, page_label: str = "este centro de custo") -> bool:
+def check_page_access(page_key: str, page_label: str = "este centro de custo") -> bool:
     """
-    Verifica autenticação da página.
-    Aceita senha específica da página OU senha mestra.
-    Persiste autenticação em cookie por 30 dias.
-    Retorna True se autenticado, False caso contrário.
+    Verifica se o usuário logado tem acesso à página.
+    - Masters (listados em [page_access].master) acessam todas as páginas.
+    - Demais usuários precisam estar na lista da página específica.
+    Retorna True se autorizado, False caso contrário (e exibe mensagem de erro).
     """
     if st.secrets.get("app_config", {}).get("dev_mode", False):
         return True
 
-    session_key = f"page_auth_{page_key}"
-    cookie_key  = f"budget_auth_{page_key}"
+    email = getattr(st.user, "email", None) or ""
 
-    # 1. Já autenticado nesta sessão
-    if st.session_state.get(session_key):
+    page_access = st.secrets.get("page_access", {})
+    masters     = [e.lower() for e in page_access.get("master", [])]
+    allowed     = [e.lower() for e in page_access.get(page_key, [])]
+
+    email_lower = email.lower()
+
+    if email_lower in masters:
         return True
 
-    # 2. Cookie válido do navegador
-    try:
-        controller = _get_controller()
-        cookie_val = controller.get(cookie_key)
-        if cookie_val == "ok":
-            st.session_state[session_key] = True
-            return True
-    except Exception:
-        pass
+    if email_lower in allowed:
+        return True
 
-    # 3. Formulário de senha
-    correct = st.secrets.get("page_passwords", {}).get(page_key, "")
-    master  = st.secrets.get("page_passwords", {}).get("master", "")
-
+    # Sem acesso
     _, col, _ = st.columns([1, 2, 1])
     with col:
-        st.markdown(
-            f"""
-            <div style="text-align:center; padding: 40px 0 24px 0;">
-              <p style="color:#a0a0a0; font-size:1rem;">
-                🔒 Acesso restrito — <strong>{page_label}</strong>
-              </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        st.error(
+            f"❌ **{email}** não tem permissão para acessar **{page_label}**.\n\n"
+            "Entre em contato com o administrador para solicitar acesso."
         )
-        pwd = st.text_input(
-            "Senha:", type="password",
-            key=f"pwd_input_{page_key}",
-            placeholder="Digite a senha do centro de custo ou a senha mestra",
-        )
-        if st.button("Entrar", use_container_width=True, key=f"pwd_btn_{page_key}"):
-            if pwd and (pwd == correct or (master and pwd == master)):
-                st.session_state[session_key] = True
-                try:
-                    controller = _get_controller()
-                    controller.set(
-                        cookie_key, "ok",
-                        max_age=_COOKIE_TTL_DAYS * 86400,
-                    )
-                except Exception:
-                    pass
-                st.rerun()
-            else:
-                st.error("Senha incorreta.")
-
     return False

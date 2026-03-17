@@ -10,12 +10,12 @@ if not st.secrets.get("app_config", {}).get("dev_mode", False) and not st.user.i
 st.session_state["_page_key"] = "parcerias"
 
 from utils.style import inject_css
-from utils.auth import check_page_password
+from utils.auth import check_page_access
 from utils.page_template import render_page
 
 inject_css()
 
-if not check_page_password("parcerias", "Parcerias"):
+if not check_page_access("parcerias", "Parcerias"):
     st.stop()
 
 render_page("parcerias")
