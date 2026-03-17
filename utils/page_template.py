@@ -420,9 +420,10 @@ def render_page(page_key: str):
                 ICONES = {"entrada": "🟢", "saida": "🔴", "desligamento": "🔴", "custo_alterado": "🟡", "reposicao": "🔄"}
                 for _, row in df_eq_log.iterrows():
                     icone = ICONES.get(row["evento"], "•")
+                    detalhe = row["detalhe"].replace("$", r"\$")
                     st.markdown(
                         f"{icone} **{row['data']}** · `{row['departamento']}` · "
-                        f"**{row['pessoa']}** — {row['detalhe']}"
+                        f"**{row['pessoa']}** — {detalhe}"
                     )
 
     # ── TAB LOG ──────────────────────────────────────────────────────────────
