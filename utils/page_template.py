@@ -10,6 +10,7 @@ from utils.data import (
     GROUP_MAP, PAGE_LABELS, PALETTE, EQUIPE_TIPO_LABELS,
     get_realizado, get_previsto_all, get_log_mudancas,
     get_equipe_for_page, get_equipe_log, get_equipe_first_seen,
+    get_realizado_detalhado,
     get_software_for_page,
     load_notas, save_nota,
     chart_layout, fmt_brl, no_data,
@@ -168,17 +169,29 @@ def render_page(page_key: str):
                 "Desvio":    desvios.apply(lambda v: f"{'↑' if v > 0 else '↓'} R$ {fmt_brl(abs(v), 0)}"),
             })
 
-            def _color_desvio(val):
-                if str(val).startswith("↑"):
-                    return "color: #e74c3c; font-weight: 600"
-                if str(val).startswith("↓"):
-                    return "color: #6eda2c; font-weight: 600"
-                return ""
-
-            st.dataframe(
-                cat_display.style.map(_color_desvio, subset=["Desvio"]),
-                hide_index=True, use_container_width=True,
+            sel = st.dataframe(
+                cat_display,
+                hide_index=True,
+                use_container_width=True,
+                on_select="rerun",
+                selection_mode="single-row",
             )
+
+            sel_rows = sel.selection.rows if sel and sel.selection else []
+            if sel_rows:
+                idx_sel  = sel_rows[0]
+                cat_sel  = cat_merged.iloc[idx_sel]["categoria"]
+                meses_num = list(meses_sel) if periodo_sel != "Ano Todo" else None
+                df_drill = get_realizado_detalhado(centros, cat_sel, meses_num)
+                st.markdown(f"**Despesas — {cat_sel}**")
+                if df_drill.empty:
+                    st.info("Nenhuma despesa encontrada para esta categoria no período.")
+                else:
+                    st.dataframe(
+                        df_drill.style.format({"Valor": lambda v: f"R$ {fmt_brl(v, 0)}"}),
+                        hide_index=True,
+                        use_container_width=True,
+                    )
 
         st.divider()
 

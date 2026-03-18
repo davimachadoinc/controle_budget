@@ -441,6 +441,32 @@ def load_all_projecoes() -> dict:
 # DADOS POR GRUPO
 # ─────────────────────────────────────────────
 
+def get_realizado_detalhado(centros: list, categoria: str, meses_num: list = None) -> pd.DataFrame:
+    """
+    Retorna despesas individuais para drilldown de uma categoria.
+    meses_num: lista de números de mês (1-12) para filtrar, ou None para todos.
+    """
+    df190  = load_190b()
+    depara = load_depara()
+
+    df = df190[df190["centro_custo"].isin(centros)].copy()
+    df = df.merge(depara, on="cod_natureza", how="left")
+    df["classificacao"] = df["classificacao"].fillna("Sem Classificação")
+    df["classificacao"] = _normalize_categoria(df["classificacao"])
+    df = df[(df["valor"] < 0) & (df["classificacao"] == categoria)]
+
+    if meses_num:
+        df = df[df["mes"].dt.month.isin(meses_num)]
+
+    df = df.copy()
+    df["valor"] = df["valor"].abs()
+    df["Data"]          = df["liquidacao"].dt.strftime("%d/%m/%Y")
+    df["Centro"]        = df["centro_custo"]
+    df["Natureza"]      = df["cod_natureza"]
+    df["Valor"]         = df["valor"]
+    return df[["Data", "Centro", "Natureza", "Valor"]].sort_values("Data", ascending=False).reset_index(drop=True)
+
+
 def get_realizado(centros: list, exclude_categories: list = None) -> pd.DataFrame:
     df190 = load_190b()
     depara = load_depara()
