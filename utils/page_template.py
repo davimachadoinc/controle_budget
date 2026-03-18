@@ -175,14 +175,18 @@ def render_page(page_key: str):
                 use_container_width=True,
                 on_select="rerun",
                 selection_mode="single-row",
+                key=f"cat_table_{page_key}_{periodo_sel}",
             )
 
             sel_rows = sel.selection.rows if sel and sel.selection else []
             if sel_rows:
-                idx_sel  = sel_rows[0]
-                cat_sel  = cat_merged.iloc[idx_sel]["categoria"]
-                meses_num = list(meses_sel) if periodo_sel != "Ano Todo" else None
-                df_drill = get_realizado_detalhado(centros, cat_sel, meses_num)
+                idx_sel   = sel_rows[0]
+                cat_sel   = cat_merged.iloc[idx_sel]["categoria"]
+                meses_num = list(meses_sel) if periodo_sel != "Ano Todo" else list(range(1, 13))
+                df_drill  = get_realizado_detalhado(centros, cat_sel, meses_num)
+                # filtrar ao ano 2026
+                if not df_drill.empty and "Data" in df_drill.columns:
+                    df_drill = df_drill[pd.to_datetime(df_drill["Data"], format="%d/%m/%Y").dt.year == 2026]
                 st.markdown(f"**Despesas — {cat_sel}**")
                 if df_drill.empty:
                     st.info("Nenhuma despesa encontrada para esta categoria no período.")
